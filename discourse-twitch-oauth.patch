@@ -1,0 +1,121 @@
+From aaeb673fcdb399becd5d3766c69fe7e764f50b7a Mon Sep 17 00:00:00 2001
+From: Dan <Dan@CrosseyeJack.com>
+Date: Wed, 19 Oct 2016 12:31:58 +0100
+Subject: [PATCH] Some hacks to allow twitch usernames and disable a few things
+ for the time being
+
+---
+ app/models/username_validator.rb | 15 ++++++++-------
+ lib/guardian/user_guardian.rb    | 33 +++++++++++++++++++++++----------
+ lib/user_name_suggester.rb       | 13 +++++++------
+ 3 files changed, 38 insertions(+), 23 deletions(-)
+
+diff --git a/app/models/username_validator.rb b/app/models/username_validator.rb
+index 0dbae4b..996d988 100644
+--- a/app/models/username_validator.rb
++++ b/app/models/username_validator.rb
+@@ -26,13 +26,14 @@ class UsernameValidator
+ 
+   def valid_format?
+     username_exist?
+-    username_length_min?
+-    username_length_max?
+-    username_char_valid?
+-    username_first_char_valid?
+-    username_last_char_valid?
+-    username_no_double_special?
+-    username_does_not_end_with_confusing_suffix?
++    ## These checks are handled by twitch
++    #username_length_min?
++    #username_length_max?
++    #username_char_valid?
++    #username_first_char_valid?
++    #username_last_char_valid?
++    #username_no_double_special?
++    #username_does_not_end_with_confusing_suffix?
+     errors.empty?
+   end
+ 
+diff --git a/lib/guardian/user_guardian.rb b/lib/guardian/user_guardian.rb
+index 3eca04f..bfd3d81 100644
+--- a/lib/guardian/user_guardian.rb
++++ b/lib/guardian/user_guardian.rb
+@@ -6,24 +6,37 @@ module UserGuardian
+   end
+ 
+   def can_edit_username?(user)
+-    return false if (SiteSetting.sso_overrides_username? && SiteSetting.enable_sso?)
+-    return true if is_staff?
+-    return false if SiteSetting.username_change_period <= 0
+-    is_me?(user) && (user.post_count == 0 || user.created_at > SiteSetting.username_change_period.days.ago)
++    ## Using oauth as a log in so oauth overrides these rules
++    return true if is_staff? ## Allow staff to change these values
++    return false
++    
++    #return false if (SiteSetting.sso_overrides_username? && SiteSetting.enable_sso?)
++    #return true if is_staff?
++    #return false if SiteSetting.username_change_period <= 0
++    #is_me?(user) && (user.post_count == 0 || user.created_at > SiteSetting.username_change_period.days.ago)
+   end
+ 
+   def can_edit_email?(user)
+-    return false if (SiteSetting.sso_overrides_email? && SiteSetting.enable_sso?)
+-    return false unless SiteSetting.email_editable?
++    ## using oauth so these should not be editable by users
++    ## I'll mod the oauth plug in to handle email changes on next log in
+     return true if is_staff?
+-    can_edit?(user)
++    return false
++    
++    #return false if (SiteSetting.sso_overrides_email? && SiteSetting.enable_sso?)
++    #return false unless SiteSetting.email_editable?
++    #return true if is_staff?
++    #can_edit?(user)
+   end
+ 
+   def can_edit_name?(user)
+-    return false if not(SiteSetting.enable_names?)
+-    return false if (SiteSetting.sso_overrides_name? && SiteSetting.enable_sso?)
++    ## Allow staff to make changes to full names
+     return true if is_staff?
+-    can_edit?(user)
++    return false
++    
++    #return false if not(SiteSetting.enable_names?)
++    #return false if (SiteSetting.sso_overrides_name? && SiteSetting.enable_sso?)
++    #return true if is_staff?
++    #can_edit?(user)
+   end
+ 
+   def can_see_notifications?(user)
+diff --git a/lib/user_name_suggester.rb b/lib/user_name_suggester.rb
+index e809be0..5b75fac 100644
+--- a/lib/user_name_suggester.rb
++++ b/lib/user_name_suggester.rb
+@@ -35,16 +35,17 @@ module UserNameSuggester
+   end
+ 
+   def self.sanitize_username(name)
+-    name = ActiveSupport::Inflector.transliterate(name)
++    ## These checks are handled by twitch
++    #name = ActiveSupport::Inflector.transliterate(name)
+     # 1. replace characters that aren't allowed with '_'
+-    name.gsub!(UsernameValidator::CONFUSING_EXTENSIONS, "_")
+-    name.gsub!(/[^\w.-]/, "_")
++    #name.gsub!(UsernameValidator::CONFUSING_EXTENSIONS, "_")
++    #name.gsub!(/[^\w.-]/, "_")
+     # 2. removes unallowed leading characters
+-    name.gsub!(/^\W+/, "")
++    #name.gsub!(/^\W+/, "")
+     # 3. removes unallowed trailing characters
+-    name = remove_unallowed_trailing_characters(name)
++    #name = remove_unallowed_trailing_characters(name)
+     # 4. unify special characters
+-    name.gsub!(/[-_.]{2,}/, "_")
++    #name.gsub!(/[-_.]{2,}/, "_")
+     name
+   end
+ 
+-- 
+2.7.4
+
